@@ -29,7 +29,9 @@
 //#include "drmario_rom.h"
 //#include "jml_rom.h"
 //#include "zelda_rom.h"
-#include "fubu_rom.h"
+//#include "fubu_rom.h"
+#include "dmgp_rom.h"
+//#include "zelda_f_rom.h"
 
 /** @addtogroup STM32F4_Discovery_Peripheral_Examples
   * @{
@@ -43,7 +45,12 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-//static uint8_t count;
+uint8_t rom_bank;
+uint8_t ram_bank;
+uint8_t ram_enable;
+uint8_t rom_ram_mode;
+
+uint8_t ram[0x8000]; // 32K
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -147,54 +154,77 @@ void SysTick_Handler(void)
 /* Set interrupt handlers */
 /* Handle PD0 interrupt */
 void EXTI0_IRQHandler(void) {
-  volatile uint16_t addr;
-  //uint8_t data;
-  /* Make sure that interrupt flag is set */
-  //if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
-  uint32_t enablestatus;
-  enablestatus =  EXTI->IMR & EXTI_Line0;
-  if (((EXTI->PR & EXTI_Line0) != (uint32_t)RESET) &&
-  (enablestatus != (uint32_t)RESET)) {
-    /* Do stuff on trigger */
-    
-    
-    //asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");//asm("NOP");
-    //asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    //asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    /*
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-    */
-    addr = GPIOD->IDR;
-    if ((GPIOC->IDR & 0x0002) || !(GPIOC->IDR & 0x0004)) {
-      //GPIOE->MODER = 0x55550000;
-      //asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-      GPIOE->ODR = 0xff00;
-    } else {
-        //addr = (addr & 0x00ff) << 8 | (addr & 0xff00) >> 8;
-      GPIOE->MODER = 0x55550000;
-      if (addr < 0x8000) {     
-        GPIOE->ODR = ((uint16_t)rom_gb[addr]) << 8;
-      }
-      asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-      asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-      asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-      asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-      GPIOE->MODER = 0x00000000;
-    }
-    //GPIOA->ODR = 0X0001;
-    //asm("NOP");asm("NOP");
-    //GPIOA->ODR = 0X0000;
-  }
-    /* Clear interrupt flag */
-    EXTI_ClearITPendingBit(EXTI_Line0);
+	volatile uint16_t addr;
+	//uint16_t addr;
+	volatile uint8_t data;
+	//if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
+	uint32_t enablestatus;
+	enablestatus =  EXTI->IMR & EXTI_Line0;
+	if (((EXTI->PR & EXTI_Line0) != (uint32_t)RESET) &&
+	    (enablestatus != (uint32_t)RESET)) {
+		/* Do stuff on trigger */
+
+		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+
+		addr = GPIOD->IDR;
+		if ((GPIOC->IDR & 0x0002) || !(GPIOC->IDR & 0x0004)) {
+			//GPIOE->MODER = 0x55550000;
+			//GPIOE->ODR = 0xff00;
+			//goto clear;
+			data = GPIOE->IDR;
+			if (addr < 0x2000) {
+				ram_enable = 1;
+			} else if (addr < 0x4000) {
+				if (data & 0x1F != 0){
+					asm("NOP");
+				}
+				data |= 0xE0;
+				rom_bank &= data;
+				if (data == 0xE0) {
+					rom_bank |= 0x01;
+				}
+				//rom_bank = data;
+			} else if (addr < 0x6000) {
+				if (rom_ram_mode) {
+					// ROM mode
+					rom_bank |= (data << 5) & 0x60;
+				} else {
+					// RAM mode
+					ram_bank = data & 0x03;
+				}
+			}
+		} else {
+			//addr = (addr & 0x00ff) << 8 | (addr & 0xff00) >> 8;
+			GPIOE->MODER = 0x55550000;
+			if (addr < 0x4000) {
+				GPIOE->ODR = ((uint16_t)rom_gb[addr]) << 8;
+				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			} else if (addr < 0x8000) {
+				
+				GPIOE->ODR = ((uint16_t)rom_gb[addr + 0x4000 * (rom_bank - 1)]) << 8;
+			} else if (addr >= 0xA000 && addr < 0xC000) {
+				GPIOE->ODR = ((uint16_t)ram[addr - 0xA000 + 0x2000 * ram_bank]) << 8;
+			}
+			
+			
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			// until here for ROM ONLY
+//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			GPIOE->MODER = 0x00000000;
+		}
+		//GPIOA->ODR = 0X0001;
+		//asm("NOP");asm("NOP");
+		//GPIOA->ODR = 0X0000;
+	}
+clear:  
+	/* Clear interrupt flag */
+	EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 /******************************************************************************/

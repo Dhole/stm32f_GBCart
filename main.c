@@ -36,6 +36,12 @@
 /* Private variables ---------------------------------------------------------*/
 GPIO_InitTypeDef  GPIO_InitStructure;
 
+extern uint8_t rom_bank;
+extern uint8_t ram_bank;
+extern uint8_t ram_enable;
+extern uint8_t rom_ram_mode;
+extern uint8_t *ram;
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -148,6 +154,11 @@ int main(void)
   // PA0
   config_gpio_dbg();
   config_PC0_int();
+
+  rom_bank = 0x01;
+  ram_bank = 0x00;
+  ram_enable = 0x00;
+  rom_ram_mode = 0x00;
 
   while (1) {}
 }
