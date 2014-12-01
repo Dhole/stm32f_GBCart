@@ -30,8 +30,12 @@
 //#include "jml_rom.h"
 //#include "zelda_rom.h"
 //#include "fubu_rom.h"
-#include "dmgp_rom.h"
+//#include "dmgp_rom.h"
 //#include "zelda_f_rom.h"
+#include "20y_rom.h"
+//#include "gejmboj_rom.h"
+//#include "oh_rom.h"
+//#include "mcmrder_rom.h"
 
 /** @addtogroup STM32F4_Discovery_Peripheral_Examples
   * @{
@@ -157,6 +161,7 @@ void EXTI0_IRQHandler(void) {
 	volatile uint16_t addr;
 	//uint16_t addr;
 	volatile uint8_t data;
+	volatile uint16_t input;
 	//if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
 	uint32_t enablestatus;
 	enablestatus =  EXTI->IMR & EXTI_Line0;
@@ -172,23 +177,32 @@ void EXTI0_IRQHandler(void) {
 			//GPIOE->MODER = 0x55550000;
 			//GPIOE->ODR = 0xff00;
 			//goto clear;
-			data = GPIOE->IDR;
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+			input = GPIOE->IDR;
+			data = GPIOE->IDR >> 8;
 			if (addr < 0x2000) {
 				ram_enable = 1;
-			} else if (addr < 0x4000) {
-				if (data & 0x1F != 0){
-					asm("NOP");
-				}
-				data |= 0xE0;
-				rom_bank &= data;
-				if (data == 0xE0) {
+			} else if (addr < 0x4000) {				
+				data &= 0x1F;
+				//rom_bank &= data;
+				rom_bank = (rom_bank & 0xE0) | data;
+				if (data == 0x00) {
 					rom_bank |= 0x01;
+				}
+				if (data != 0xE1){
+					asm("NOP");
 				}
 				//rom_bank = data;
 			} else if (addr < 0x6000) {
 				if (rom_ram_mode) {
 					// ROM mode
-					rom_bank |= (data << 5) & 0x60;
+					data &= 0x07;
+					rom_bank = (rom_bank & 0x1F) | (data << 5);
 				} else {
 					// RAM mode
 					ram_bank = data & 0x03;
