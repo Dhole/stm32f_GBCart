@@ -31,11 +31,15 @@
 //#include "zelda_rom.h"
 //#include "fubu_rom.h"
 //#include "dmgp_rom.h"
-//#include "zelda_f_rom.h"
-#include "20y_rom.h"
+#include "zelda_f_rom.h"
+//#include "20y_rom.h"
 //#include "gejmboj_rom.h"
 //#include "oh_rom.h"
 //#include "mcmrder_rom.h"
+//#include "cpu_test_rom.h"
+//#include "gemgem_rom.h"
+//#include "organizer_rom.h"
+//#include "organizer_sav.h"
 
 /** @addtogroup STM32F4_Discovery_Peripheral_Examples
   * @{
@@ -158,10 +162,10 @@ void SysTick_Handler(void)
 /* Set interrupt handlers */
 /* Handle PD0 interrupt */
 void EXTI0_IRQHandler(void) {
-	volatile uint16_t addr;
+	uint16_t addr;
 	//uint16_t addr;
-	volatile uint8_t data;
-	volatile uint16_t input;
+	uint8_t data;
+	//volatile uint16_t input;
 	//if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
 	uint32_t enablestatus;
 	enablestatus =  EXTI->IMR & EXTI_Line0;
@@ -171,6 +175,7 @@ void EXTI0_IRQHandler(void) {
 
 		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
+		asm("NOP");asm("NOP");
 
 		addr = GPIOD->IDR;
 		if ((GPIOC->IDR & 0x0002) || !(GPIOC->IDR & 0x0004)) {
@@ -183,11 +188,20 @@ void EXTI0_IRQHandler(void) {
 			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			input = GPIOE->IDR;
+			asm("NOP");asm("NOP");//asm("NOP");asm("NOP");
+			//input = GPIOE->IDR;
 			data = GPIOE->IDR >> 8;
-			if (addr < 0x2000) {
-				ram_enable = 1;
-			} else if (addr < 0x4000) {				
+			
+			if (addr >= 0xA000 && addr < 0xC000) {
+				ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
+			}
+			/*if (addr < 0x2000) {
+				if (data) {
+					ram_enable = 1;
+				} else {
+					ram_enable = 0;
+				}
+			} */else if (addr >= 0x2000 && addr < 0x4000) {				
 				data &= 0x1F;
 				//rom_bank &= data;
 				rom_bank = (rom_bank & 0xE0) | data;
@@ -207,7 +221,13 @@ void EXTI0_IRQHandler(void) {
 					// RAM mode
 					ram_bank = data & 0x03;
 				}
-			}
+			}/* else if (addr < 0x8000) {
+				if (data) { // Emable RAM Banking mode
+					rom_ram_mode = 0;
+				} else { // Emable ROM Banking mode
+					rom_ram_mode = 1;
+				}
+			}*/
 		} else {
 			//addr = (addr & 0x00ff) << 8 | (addr & 0xff00) >> 8;
 			GPIOE->MODER = 0x55550000;
@@ -215,14 +235,14 @@ void EXTI0_IRQHandler(void) {
 				GPIOE->ODR = ((uint16_t)rom_gb[addr]) << 8;
 				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			} else if (addr < 0x8000) {
-				
-				GPIOE->ODR = ((uint16_t)rom_gb[addr + 0x4000 * (rom_bank - 1)]) << 8;
+			} else if (addr < 0x8000) {				
+				GPIOE->ODR = ((uint16_t)rom_gb[addr + 
+				    0x4000 * (rom_bank - 1)]) << 8;
 			} else if (addr >= 0xA000 && addr < 0xC000) {
-				GPIOE->ODR = ((uint16_t)ram[addr - 0xA000 + 0x2000 * ram_bank]) << 8;
+				GPIOE->ODR = ((uint16_t)ram[addr - 
+				    0xA000 + 0x2000 * ram_bank]) << 8;
 			}
-			
-			
+			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
 			// until here for ROM ONLY
@@ -236,9 +256,10 @@ void EXTI0_IRQHandler(void) {
 		//asm("NOP");asm("NOP");
 		//GPIOA->ODR = 0X0000;
 	}
-clear:  
+//clear:  
 	/* Clear interrupt flag */
 	EXTI_ClearITPendingBit(EXTI_Line0);
+	//EXTI->PR = EXTI_Line0;
 }
 
 /******************************************************************************/

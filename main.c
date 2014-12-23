@@ -152,7 +152,7 @@ int main(void)
   // PC{0..2}
   config_gpio_sig();
   // PA0
-  config_gpio_dbg();
+  //config_gpio_dbg();
   config_PC0_int();
 
   rom_bank = 0x01;
