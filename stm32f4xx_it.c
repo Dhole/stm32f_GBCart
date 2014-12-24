@@ -59,7 +59,7 @@ uint8_t ram[0x8000]; // 32K
 inline void mbc1_write(uint16_t addr, uint8_t data) {
 	if (addr >= 0xA000 && addr < 0xC000) {
  		/* 8KB RAM Bank 00-03, if any */
-		ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
+		//ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
 	}
 	/*if (addr < 0x2000) {
 		if (data) {
