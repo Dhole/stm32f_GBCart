@@ -10,7 +10,7 @@ SRCS += stm32f4xx_tim.c misc.c
 SRCS += stm32f4_discovery.c
 
 # Binaries will be generated with this name (.elf, .bin, .hex, etc)
-PROJ_NAME=tim_time_base
+PROJ_NAME=gbcart
 
 #######################################################################################
 

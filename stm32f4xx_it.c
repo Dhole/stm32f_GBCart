@@ -1,289 +1,169 @@
 /**
   ******************************************************************************
-  * @file    TIM_TimeBase/stm32f4xx_it.c 
-  * @author  MCD Application Team
+  * @author  Eduard S.
   * @version V1.0.0
-  * @date    19-September-2011
-  * @brief   Main Interrupt Service Routines.
-  *          This file provides template for all exceptions handler and peripherals
-  *          interrupt service routine.
-  ******************************************************************************
-  * @attention
-  *
-  * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 2011 STMicroelectronics</center></h2>
+  * @date    23-December-2014
+  * @brief   Interrupt handlers.
+  *          The interrupt handler for the rising flag trigger is defined here.
+  *          It handles the read and write operations of the gameboy to the
+  *          cartridge.  
   ******************************************************************************
   */ 
 
-/* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_it.h"
 #include "stm32f4_discovery.h"
+#include "repeat.h"
 
-//#include "tetris_rom.h"
-//#include "drmario_rom.h"
-//#include "jml_rom.h"
-//#include "zelda_rom.h"
-//#include "fubu_rom.h"
-//#include "dmgp_rom.h"
-#include "zelda_f_rom.h"
-//#include "20y_rom.h"
-//#include "gejmboj_rom.h"
-//#include "oh_rom.h"
-//#include "mcmrder_rom.h"
-//#include "cpu_test_rom.h"
-//#include "gemgem_rom.h"
-//#include "organizer_rom.h"
-//#include "organizer_sav.h"
+//#include "roms/tetris_rom.h"
+//#include "roms/drmario_rom.h"
+//#include "roms/jml_rom.h"
+//#include "roms/zelda_rom.h"
+//#include "roms/fubu_rom.h"
+#include "roms/dmgp_rom.h"
+//#include "roms/zelda_f_rom.h"
+//#include "roms/20y_rom.h"
+//#include "roms/gejmboj_rom.h"
+//#include "roms/oh_rom.h"
+//#include "roms/mcmrder_rom.h"
+//#include "roms/cpu_test_rom.h"
+//#include "roms/gemgem_rom.h"
+//#include "roms/organizer_rom.h"
+//#include "roms/organizer_sav.h"
+#include "dhole2_logo.h"
 
-/** @addtogroup STM32F4_Discovery_Peripheral_Examples
-  * @{
-  */
 
-/** @addtogroup TIM_TimeBase
-  * @{
-  */ 
+/* 
+ * Macros to relate the GPIO and the functionality
+ */
+#define BUS_RD (GPIOC->IDR & 0x0002)
+#define BUS_WR (GPIOC->IDR & 0x0004)
+#define ADDR_IN GPIOD->IDR
+#define DATA_IN GPIOE->IDR
+#define DATA_OUT GPIOE->ODR
+#define SET_DATA_MODE_IN GPIOE->MODER = 0x00000000;
+#define SET_DATA_MODE_OUT GPIOE->MODER = 0x55550000;
 
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-uint8_t rom_bank;
+
+/* Defines wether to show the Nintendo logo or the custom logo */
+uint8_t no_show_logo;
+
+uint8_t rom_bank; 
 uint8_t ram_bank;
 uint8_t ram_enable;
 uint8_t rom_ram_mode;
 
 uint8_t ram[0x8000]; // 32K
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
 
-/******************************************************************************/
-/*            Cortex-M4 Processor Exceptions Handlers                         */
-/******************************************************************************/
 
-/**
-  * @brief  This function handles NMI exception.
-  * @param  None
-  * @retval None
-  */
-void NMI_Handler(void)
-{
+/* Write cartridge operation for MBC1 */
+inline void mbc1_write(uint16_t addr, uint8_t data) {
+	if (addr >= 0xA000 && addr < 0xC000) {
+ 		/* 8KB RAM Bank 00-03, if any */
+		ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
+	}
+	/*if (addr < 0x2000) {
+		if (data) {
+			ram_enable = 1;
+		} else {
+			ram_enable = 0;
+		}
+	}*/ else if (addr >= 0x2000 && addr < 0x4000) {
+		/* ROM Bank Number */
+		data &= 0x1F;
+		rom_bank = (rom_bank & 0xE0) | data;
+		if (data == 0x00) {
+			rom_bank |= 0x01;
+		}
+	} else if (addr < 0x6000) {
+		/*RAM Bank Number - or - Upper Bits of ROM Bank Number */
+		if (rom_ram_mode) {
+			/* ROM mode */
+			data &= 0x07;
+			rom_bank = (rom_bank & 0x1F) | (data << 5);
+		} else {
+			/* RAM mode */
+			ram_bank = data & 0x03;
+		}
+	} else if (addr < 0x8000) {
+		/* ROM/RAM Mode Select */
+		if (data) { 
+			/* Emable RAM Banking mode */
+			rom_ram_mode = 0;
+		} else { 
+			/* Emable ROM Banking mode */
+			rom_ram_mode = 1;
+		}
+	}
 }
 
-/**
-  * @brief  This function handles Hard Fault exception.
-  * @param  None
-  * @retval None
-  */
-void HardFault_Handler(void)
-{
-  /* Go to infinite loop when Hard Fault exception occurs */
-  while (1)
-  {}
+/* Read cartridge operation for MBC1 */
+inline uint8_t mbc1_read(uint16_t addr) {
+	if (addr < 0x4000) {
+		/* 16KB ROM bank 00 */
+		if (no_show_logo) {
+			/* Custom logo disabled */
+			return rom_gb[addr];
+		} else {
+			/* Custom logo enabled, only during first read at boot */
+			if (addr == 0x133) {
+				no_show_logo = 1;
+			}
+			return logo_bin[addr - 0x104];
+		}
+	} else if (addr < 0x8000) {
+		/* 16KB ROM Bank 01-7F */
+		return rom_gb[addr + 0x4000 * (rom_bank - 1)];
+	} else if (addr >= 0xA000 && addr < 0xC000) {
+		/* 8KB RAM Bank 00-03, if any */
+		return ram[addr - 0xA000 + 0x2000 * ram_bank];
+	}
+	return 0x00;
 }
 
-/**
-  * @brief  This function handles Memory Manage exception.
-  * @param  None
-  * @retval None
-  */
-void MemManage_Handler(void)
-{
-  /* Go to infinite loop when Memory Manage exception occurs */
-  while (1)
-  {}
-}
-
-/**
-  * @brief  This function handles Bus Fault exception.
-  * @param  None
-  * @retval None
-  */
-void BusFault_Handler(void)
-{
-  /* Go to infinite loop when Bus Fault exception occurs */
-  while (1)
-  {}
-}
-
-/**
-  * @brief  This function handles Usage Fault exception.
-  * @param  None
-  * @retval None
-  */
-void UsageFault_Handler(void)
-{
-  /* Go to infinite loop when Usage Fault exception occurs */
-  while (1)
-  {}
-}
-
-/**
-  * @brief  This function handles Debug Monitor exception.
-  * @param  None
-  * @retval None
-  */
-void DebugMon_Handler(void)
-{}
-
-/**
-  * @brief  This function handles SVCall exception.
-  * @param  None
-  * @retval None
-  */
-void SVC_Handler(void)
-{}
-
-/**
-  * @brief  This function handles PendSV_Handler exception.
-  * @param  None
-  * @retval None
-  */
-void PendSV_Handler(void)
-{}
-
-/**
-  * @brief  This function handles SysTick Handler.
-  * @param  None
-  * @retval None
-  */
-void SysTick_Handler(void)
-{}
-
-/******************************************************************************/
-/*            STM32F4xx Peripherals Interrupt Handlers                        */
-/******************************************************************************/
-
-/* Set interrupt handlers */
-/* Handle PD0 interrupt */
+/* Handle PC0 interrupt (rising edge of the gameboy CLK) */
 void EXTI0_IRQHandler(void) {
 	uint16_t addr;
-	//uint16_t addr;
 	uint8_t data;
-	//volatile uint16_t input;
-	//if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
+	
 	uint32_t enablestatus;
 	enablestatus =  EXTI->IMR & EXTI_Line0;
+	
 	if (((EXTI->PR & EXTI_Line0) != (uint32_t)RESET) &&
 	    (enablestatus != (uint32_t)RESET)) {
 		/* Do stuff on trigger */
 
-		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-		asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-		asm("NOP");asm("NOP");
-
-		addr = GPIOD->IDR;
-		if ((GPIOC->IDR & 0x0002) || !(GPIOC->IDR & 0x0004)) {
-			//GPIOE->MODER = 0x55550000;
-			//GPIOE->ODR = 0xff00;
-			//goto clear;
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");//asm("NOP");asm("NOP");
-			//input = GPIOE->IDR;
-			data = GPIOE->IDR >> 8;
+		/* Wait 10 NOPs, until the ADDR is ready in the bus */
+		REP(1,0,asm("NOP"););
+		
+		/* Read ADDR from the bus */
+		addr = ADDR_IN;
+		
+		if (BUS_RD || !BUS_WR) {
+			/* Write operation */
 			
-			if (addr >= 0xA000 && addr < 0xC000) {
-				ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
-			}
-			/*if (addr < 0x2000) {
-				if (data) {
-					ram_enable = 1;
-				} else {
-					ram_enable = 0;
-				}
-			} */else if (addr >= 0x2000 && addr < 0x4000) {				
-				data &= 0x1F;
-				//rom_bank &= data;
-				rom_bank = (rom_bank & 0xE0) | data;
-				if (data == 0x00) {
-					rom_bank |= 0x01;
-				}
-				if (data != 0xE1){
-					asm("NOP");
-				}
-				//rom_bank = data;
-			} else if (addr < 0x6000) {
-				if (rom_ram_mode) {
-					// ROM mode
-					data &= 0x07;
-					rom_bank = (rom_bank & 0x1F) | (data << 5);
-				} else {
-					// RAM mode
-					ram_bank = data & 0x03;
-				}
-			}/* else if (addr < 0x8000) {
-				if (data) { // Emable RAM Banking mode
-					rom_ram_mode = 0;
-				} else { // Emable ROM Banking mode
-					rom_ram_mode = 1;
-				}
-			}*/
+			/* Wait 30 NOPs, until the DATA is ready in the bus */
+			REP(3,0,asm("NOP"););
+			
+			/* Read DATA from the bus */
+			data = DATA_IN >> 8;
+			
+			/* Write data to cartridge at addr */
+			mbc1_write(addr, data);
 		} else {
-			//addr = (addr & 0x00ff) << 8 | (addr & 0xff00) >> 8;
-			GPIOE->MODER = 0x55550000;
-			if (addr < 0x4000) {
-				GPIOE->ODR = ((uint16_t)rom_gb[addr]) << 8;
-				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-				asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			} else if (addr < 0x8000) {				
-				GPIOE->ODR = ((uint16_t)rom_gb[addr + 
-				    0x4000 * (rom_bank - 1)]) << 8;
-			} else if (addr >= 0xA000 && addr < 0xC000) {
-				GPIOE->ODR = ((uint16_t)ram[addr - 
-				    0xA000 + 0x2000 * ram_bank]) << 8;
-			}
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			// until here for ROM ONLY
-//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			//asm("NOP");asm("NOP");asm("NOP");asm("NOP");
-			GPIOE->MODER = 0x00000000;
+			/* Read operation */
+			
+			/* Set the GPIOE in output mode */
+			SET_DATA_MODE_OUT;
+			/* Output the data read at addr through GPIOE */
+			DATA_OUT = ((uint16_t)mbc1_read(addr)) << 8;
+			/* Wait 10 NOPs, until the gameboy has read the DATA
+			 * in the bus */
+			REP(1,0,asm("NOP"););
+			/* Set the GPIOE back to input mode */
+			SET_DATA_MODE_IN;
 		}
-		//GPIOA->ODR = 0X0001;
-		//asm("NOP");asm("NOP");
-		//GPIOA->ODR = 0X0000;
 	}
-//clear:  
+	REP(0,4,asm("NOP"););
 	/* Clear interrupt flag */
-	EXTI_ClearITPendingBit(EXTI_Line0);
-	//EXTI->PR = EXTI_Line0;
+	EXTI->PR = EXTI_Line0;
 }
-
-/******************************************************************************/
-/*                 STM32F4xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f4xx.s).                                               */
-/******************************************************************************/
-
-/**
-  * @brief  This function handles PPP interrupt request.
-  * @param  None
-  * @retval None
-  */
-/*void PPP_IRQHandler(void)
-{
-}*/
-
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-  */ 
-
-/******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
