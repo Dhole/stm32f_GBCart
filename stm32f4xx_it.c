@@ -14,12 +14,12 @@
 #include "stm32f4_discovery.h"
 #include "repeat.h"
 
-//#include "roms/tetris_rom.h"
+#include "roms/tetris_rom.h"
 //#include "roms/drmario_rom.h"
 //#include "roms/jml_rom.h"
 //#include "roms/zelda_rom.h"
 //#include "roms/fubu_rom.h"
-#include "roms/dmgp_rom.h"
+//#include "roms/dmgp_rom.h"
 //#include "roms/zelda_f_rom.h"
 //#include "roms/20y_rom.h"
 //#include "roms/gejmboj_rom.h"
@@ -156,14 +156,14 @@ void EXTI0_IRQHandler(void) {
 			SET_DATA_MODE_OUT;
 			/* Output the data read at addr through GPIOE */
 			DATA_OUT = ((uint16_t)mbc1_read(addr)) << 8;
-			/* Wait 10 NOPs, until the gameboy has read the DATA
+			/* Wait 14 NOPs, until the gameboy has read the DATA
 			 * in the bus */
-			REP(1,0,asm("NOP"););
+			REP(1,4,asm("NOP"););
 			/* Set the GPIOE back to input mode */
 			SET_DATA_MODE_IN;
 		}
 	}
-	REP(0,4,asm("NOP"););
 	/* Clear interrupt flag */
 	EXTI->PR = EXTI_Line0;
+	//EXTI_ClearITPendingBit(EXTI_Line0);
 }
