@@ -14,8 +14,8 @@
 #include "stm32f4_discovery.h"
 #include "repeat.h"
 
-#include "roms/tetris_rom.h"
-//#include "roms/drmario_rom.h"
+//#include "roms/tetris_rom.h"
+#include "roms/drmario_rom.h"
 //#include "roms/jml_rom.h"
 //#include "roms/zelda_rom.h"
 //#include "roms/fubu_rom.h"
@@ -134,7 +134,6 @@ void EXTI0_IRQHandler(void) {
 
 		/* Wait 10 NOPs, until the ADDR is ready in the bus */
 		REP(1,0,asm("NOP"););
-		
 		/* Read ADDR from the bus */
 		addr = ADDR_IN;
 		
@@ -143,10 +142,8 @@ void EXTI0_IRQHandler(void) {
 			
 			/* Wait 30 NOPs, until the DATA is ready in the bus */
 			REP(3,0,asm("NOP"););
-			
 			/* Read DATA from the bus */
 			data = DATA_IN >> 8;
-			
 			/* Write data to cartridge at addr */
 			mbc1_write(addr, data);
 		} else {
