@@ -15,14 +15,14 @@
 #include "repeat.h"
 
 //#include "roms/tetris_rom.h"
-#include "roms/drmario_rom.h"
+//#include "roms/drmario_rom.h"
 //#include "roms/jml_rom.h"
 //#include "roms/zelda_rom.h"
 //#include "roms/fubu_rom.h"
 //#include "roms/dmgp_rom.h"
 //#include "roms/zelda_f_rom.h"
 //#include "roms/20y_rom.h"
-//#include "roms/gejmboj_rom.h"
+#include "roms/gejmboj_rom.h"
 //#include "roms/oh_rom.h"
 //#include "roms/mcmrder_rom.h"
 //#include "roms/cpu_test_rom.h"
@@ -59,7 +59,7 @@ uint8_t ram[0x8000]; // 32K
 inline void mbc1_write(uint16_t addr, uint8_t data) {
 	if (addr >= 0xA000 && addr < 0xC000) {
  		/* 8KB RAM Bank 00-03, if any */
-		//ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
+		ram[addr - 0xA000 + 0x2000 * ram_bank] = data;
 	}
 	/*if (addr < 0x2000) {
 		if (data) {
