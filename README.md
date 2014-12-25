@@ -3,6 +3,12 @@ stm32f_GBCart
 
 Game Boy Cartridge emulation from a stm32f4 Development Board
 
+I wrote about this project in my blog:
+
+- https://dhole.github.io/post/gameboy_cartridge_emu_1/
+- https://dhole.github.io/post/gameboy_cartridge_emu_2/
+- https://dhole.github.io/post/gameboy_custom_logo/
+
 ## Description
 
 This project implements the emulation of a gameboy cartridge using a stm32f4
