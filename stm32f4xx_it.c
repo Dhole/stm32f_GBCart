@@ -134,8 +134,8 @@ void EXTI0_IRQHandler(void) {
 	    (enablestatus != (uint32_t)RESET)) {
 		/* Do stuff on trigger */
 
-		/* Wait 10 NOPs, until the ADDR is ready in the bus */
-		REP(1,0,asm("NOP"););
+		/* Wait 8 NOPs, until the ADDR is ready in the bus */
+		REP(0,8,asm("NOP"););
 		/* Read ADDR from the bus */
 		addr = ADDR_IN;
 		
