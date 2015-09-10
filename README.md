@@ -52,3 +52,10 @@ cp dhole_logo2.bin logo.bin
 xxd -i logo.bin > dhole2_logo.h
 rm logo.bin
 ```
+
+## Issues
+
+If some games don't run, or you get crashes at some points, it may be a timming
+issue (the timmings are very tight, and I believe they may need to be different
+on different hardware revisions). You can try [goebish's](https://github.com/goebish/stm32f_GBCart/commit/f5200854f8541e80b23790774c8a3aefe13a9adb) branch which modifies
+the number of NOPs in the code.
